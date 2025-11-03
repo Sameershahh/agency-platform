@@ -44,7 +44,7 @@ agency-website/
 │   ├── components/
 │   ├── lib/
 │   ├── public/
-│   │   └── screenshots/     # put images for README here
+│   │   └── screenshots/     
 │   ├── .env.example
 │   ├── package.json
 │   ├── next.config.js
