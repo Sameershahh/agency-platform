@@ -1,0 +1,106 @@
+# ---------------------------
+# GLOBAL / OS / EDITOR FILES
+# ---------------------------
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+*.idea/
+.vscode/
+*.code-workspace
+*.env.local
+.env.*
+!.env.example
+
+# ---------------------------
+# PYTHON / DJANGO BACKEND
+# ---------------------------
+backend/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/*.py[cod]
+backend/*$py.class
+
+# Virtual Environment
+venv/
+env/
+.venv/
+ENV/
+
+# Django static / media files
+backend/staticfiles/
+backend/media/
+backend/media_root/
+backend/static_root/
+
+# Django migrations compiled
+backend/**/migrations/__pycache__/
+backend/**/migrations/*.pyc
+# (OPTIONAL) ignore all migrations except __init__.py
+# backend/**/migrations/[0-9]*.py
+
+# SQLite DB 
+backend/db.sqlite3
+
+# Secret keys / env files
+backend/.env
+backend/.env.*
+*.secret
+*.key
+
+# Custom ignore 
+backend/document/
+
+# ---------------------------
+# NODE / NEXT.JS FRONTEND
+# ---------------------------
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.turbo/
+frontend/.swc/
+frontend/.vercel/
+
+# Next.js build cache
+frontend/.next/cache/
+
+# Log files
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/.pnpm-debug.log*
+
+# Dependency lock for others (if not used)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Frontend env files
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+frontend/.env.test
+
+# ---------------------------
+# GLOBAL ENV / SECRET FILES
+# ---------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.crt
+*.csr
+
+# ---------------------------
+# MISC
+# ---------------------------
+coverage/
+__pycache__/
+.cache/
+tmp/
