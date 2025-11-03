@@ -12,27 +12,48 @@ This project is a full-stack application intended as a portfolio-grade SaaS-styl
 
 ---
 
-## 📸 Screenshots
+## 📸 Screenshot
 
-
-
----
-
-| Landing Page (Public View) |
-|----------------------------|
-| _Add screenshot here_ |
-
-> Place screenshots here:  
-> `frontend/public/screenshots/landing.png`  
-> Then reference like:  
-> `![Landing Screenshot](./frontend/public/screenshots/landing.png)`
+<img width="1902" height="903" alt="NeuraStack" src="https://github.com/user-attachments/assets/6216f00f-5692-46a6-82e4-bdcccfb9d97c" />
 
 ---
 
 ## Repository structure
 
-## Repository structure
-
+```bash
+agency-website/
+├── backend/
+│   ├── backend/
+│   │   ├── __init__.py
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   ├── wsgi.py
+│   │   └── asgi.py
+│   ├── users/
+│   ├── projects/
+│   ├── chatbot/
+│   ├── api/
+│   │   └── urls.py
+│   ├── documents/
+│   ├── manage.py
+│   ├── requirements.txt
+│   └── venv/ (ignored)
+│
+├── frontend/                # Next.js 14 (App Router)
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   ├── public/
+│   │   └── screenshots/     # put images for README here
+│   ├── .env.example
+│   ├── package.json
+│   ├── next.config.js
+│   └── tsconfig.json
+│
+├── .gitignore
+├── README.md
+└── LICENSE
+```
 
 
 > Note: The repo intentionally keeps frontend and backend inside one monorepo for convenience and portfolio presentation.
