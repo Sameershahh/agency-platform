@@ -12,7 +12,7 @@ This project is a full-stack application intended as a portfolio-grade SaaS-styl
 
 ---
 
-## 📸 Screenshot
+##  Screenshot
 
 <img width="1902" height="903" alt="NeuraStack" src="https://github.com/user-attachments/assets/6216f00f-5692-46a6-82e4-bdcccfb9d97c" />
 
