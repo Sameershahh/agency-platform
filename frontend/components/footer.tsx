@@ -1,11 +1,34 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 
 export function Footer() {
+  // don't render on server to avoid hydration mismatch; decide on client
+  const [shouldRender, setShouldRender] = useState(false)
+
+  useEffect(() => {
+    try {
+      // If flag not present, claim the footer render and allow rendering
+      if (!(window as any).__SITE_FOOTER_RENDERED) {
+        ;(window as any).__SITE_FOOTER_RENDERED = true
+        setShouldRender(true)
+      } else {
+        // Another Footer already rendered — suppress this instance
+        setShouldRender(false)
+      }
+    } catch (e) {
+      // In case window access fails (very unlikely), fall back to render
+      setShouldRender(true)
+    }
+    // Intentionally do NOT unset the flag on unmount — keep footer present across navigations
+  }, [])
+
+  if (!shouldRender) return null
+
   return (
-    <footer className="border-t border-primary/20 glass mt-32">
+    <footer id="site-footer" className="border-t border-primary/20 glass mt-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
@@ -25,13 +48,21 @@ export function Footer() {
           >
             <h4 className="font-semibold mb-4 text-foreground">Product</h4>
             <ul className="space-y-2">
-              {["Services", "Pricing", "Dashboard"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
-                    {item}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link href="/services" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Services
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Dashboard
+                </Link>
+              </li>
             </ul>
           </motion.div>
 
@@ -43,13 +74,21 @@ export function Footer() {
           >
             <h4 className="font-semibold mb-4 text-foreground">Company</h4>
             <ul className="space-y-2">
-              {["About", "Blog", "Careers"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
-                    {item}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link href="/about" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  About
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Blog
+                </Link>
+              </li>
+              <li>
+                <Link href="/careers" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Careers
+                </Link>
+              </li>
             </ul>
           </motion.div>
 
@@ -61,30 +100,38 @@ export function Footer() {
           >
             <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
             <ul className="space-y-2">
-              {["Privacy", "Terms", "Contact"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
-                    {item}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link href="/privacy" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Terms
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+                  Contact
+                </Link>
+              </li>
             </ul>
           </motion.div>
         </div>
 
         {/* Divider */}
         <div className="border-t border-primary/10 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-foreground/50 text-sm">© 2025 NeuraStack Labs. All rights reserved.</p>
+          <p className="text-foreground/50 text-sm">© {new Date().getFullYear()} NeuraStack Labs. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
-            {["Twitter", "LinkedIn", "GitHub"].map((social) => (
-              <Link
-                key={social}
-                href="#"
-                className="text-foreground/50 hover:text-foreground transition-colors text-sm"
-              >
-                {social}
-              </Link>
-            ))}
+            <Link href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-foreground/50 hover:text-foreground transition-colors text-sm">
+              Twitter
+            </Link>
+            <Link href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className="text-foreground/50 hover:text-foreground transition-colors text-sm">
+              LinkedIn
+            </Link>
+            <Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-foreground/50 hover:text-foreground transition-colors text-sm">
+              GitHub
+            </Link>
           </div>
         </div>
       </div>

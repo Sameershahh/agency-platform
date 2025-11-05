@@ -119,7 +119,7 @@ export default function SignInPage() {
                   <span className="text-foreground/60">Remember me</span>
                 </label>
                 <Link
-                  href="#"
+                  href="/forgot-password"
                   className="text-primary hover:text-accent transition-colors"
                 >
                   Forgot password?

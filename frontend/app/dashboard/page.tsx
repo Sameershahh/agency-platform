@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   LineChart,
   Line,
@@ -50,7 +51,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  //  Fetch dashboard data securely
+  // Fetch dashboard data securely
   useEffect(() => {
     let mounted = true;
 
@@ -90,7 +91,7 @@ function DashboardContent() {
         if (!mounted) return;
         setStats(statList);
 
-        // ✅ Line Chart Data
+        // Line Chart Data
         if (Array.isArray(data.performance_trend) && data.performance_trend.length) {
           const mapped = data.performance_trend.map((p: any) => ({
             name: p.month ?? p.date ?? String(p.label ?? ""),
@@ -100,7 +101,7 @@ function DashboardContent() {
           setChartData(mapped);
         }
 
-        // ✅ Bar Chart Data
+        // Bar Chart Data
         if (Array.isArray(data.project_distribution) && data.project_distribution.length) {
           const mappedBar = data.project_distribution.map((d: any) => ({
             name: d.category || "Uncategorized",
@@ -158,36 +159,51 @@ function DashboardContent() {
           </motion.div>
         </div>
 
+        {/* Sidebar Links */}
         <nav className="p-4 space-y-2">
-          {[
-            { label: "Dashboard", icon: "📊" },
-            { label: "Projects", icon: "📁" },
-            { label: "Analytics", icon: "📈" },
-            { label: "Settings", icon: "⚙️" },
-          ].map((item, i) => (
+          <Link href="/dashboard">
             <motion.button
-              key={i}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                i === 0
-                  ? "bg-primary/20 text-primary"
-                  : "text-foreground/60 hover:text-foreground"
-              }`}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/20 text-primary"
               whileHover={{ x: 4 }}
             >
-              <span className="text-xl">{item.icon}</span>
-              {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
+              <span className="text-xl">📊</span>
+              {sidebarOpen && <span className="text-sm font-medium">Dashboard</span>}
             </motion.button>
-          ))}
+          </Link>
+
+          <Link href="/dashboard/projects">
+            <motion.button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-foreground/60 hover:text-foreground"
+              whileHover={{ x: 4 }}
+            >
+              <span className="text-xl">📁</span>
+              {sidebarOpen && <span className="text-sm font-medium">Projects</span>}
+            </motion.button>
+          </Link>
+
+          <Link href="/dashboard/analytics">
+            <motion.button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-foreground/60 hover:text-foreground"
+              whileHover={{ x: 4 }}
+            >
+              <span className="text-xl">📈</span>
+              {sidebarOpen && <span className="text-sm font-medium">Analytics</span>}
+            </motion.button>
+          </Link>
         </nav>
 
+        {/* Bottom Buttons */}
         <div className="absolute bottom-6 left-4 right-4 space-y-2">
-          <motion.button
-            className="w-full flex items-center gap-3 px-4 py-3 text-foreground/60 hover:text-foreground transition-colors"
-            whileHover={{ x: 4 }}
-          >
-            <Settings size={20} />
-            {sidebarOpen && <span className="text-sm font-medium">Settings</span>}
-          </motion.button>
+          <Link href="/dashboard/settings">
+            <motion.button
+              className="w-full flex items-center gap-3 px-4 py-3 text-foreground/60 hover:text-foreground transition-colors"
+              whileHover={{ x: 4 }}
+            >
+              <Settings size={20} />
+              {sidebarOpen && <span className="text-sm font-medium">Settings</span>}
+            </motion.button>
+          </Link>
+
           <motion.button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 transition-colors"
@@ -214,13 +230,15 @@ function DashboardContent() {
               </p>
             </div>
             <div className="flex items-center gap-6">
-              <button className="relative p-2 hover:bg-primary/10 rounded-lg transition-colors group">
-                <Bell
-                  size={20}
-                  className="text-foreground/60 group-hover:text-foreground"
-                />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              <Link href="/newsletter-popup">
+                <button className="relative p-2 hover:bg-primary/10 rounded-lg transition-colors group">
+                  <Bell
+                    size={20}
+                    className="text-foreground/60 group-hover:text-foreground"
+                  />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                </button>
+              </Link>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full" />
                 <div className="text-sm">
@@ -236,7 +254,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Main Dashboard Content */}
         <div className="p-8">
           {loading && (
             <div className="mb-6 p-4 text-sm text-foreground/60">
@@ -371,8 +389,8 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <ProtectedRoute>
-      <DashboardContent />
-    </ProtectedRoute>
+    //<ProtectedRoute>
+    <DashboardContent />
+    //</ProtectedRoute>
   );
 }

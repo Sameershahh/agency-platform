@@ -51,7 +51,7 @@ export default function SignUpPage() {
         return
       }
 
-      alert("✅ Account created successfully! Please verify your email before logging in.")
+      alert(" Account created successfully! Please verify your email before logging in.")
       window.location.href = "/signin"
     } catch (error) {
       console.error("Registration error:", error)
@@ -151,11 +151,11 @@ export default function SignUpPage() {
                 <input type="checkbox" className="w-4 h-4 rounded mt-0.5" required />
                 <span className="text-sm text-foreground/60">
                   I agree to the{" "}
-                  <Link href="#" className="text-primary hover:text-accent transition-colors">
+                  <Link href="/terms" className="text-primary hover:text-accent transition-colors">
                     Terms of Service
                   </Link>{" "}
                   and{" "}
-                  <Link href="#" className="text-primary hover:text-accent transition-colors">
+                  <Link href="/privacy" className="text-primary hover:text-accent transition-colors">
                     Privacy Policy
                   </Link>
                 </span>
