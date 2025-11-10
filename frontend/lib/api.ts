@@ -1,6 +1,6 @@
   "use client";
 
-  export const API_BASE_URL = "http://127.0.0.1:8000/api/"; 
+  export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api/"; 
 
   async function refreshToken() {
     const refresh = localStorage.getItem("refresh");
@@ -116,16 +116,16 @@
 
 
   export async function sendChatMessage(message: string) {
-    const res = await fetch(`http://127.0.0.1:8000/api/chat/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
+  const res = await fetch(`${API_BASE_URL}/api/chat/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(err || "Failed to send message");
-    }
-
-    return res.json(); // Expected to return { reply: "..." }
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "Failed to send message");
   }
+
+  return res.json(); // expected { reply: "...", sources: [...] }
+}

@@ -1,50 +1,52 @@
 import os
 import requests
-from transformers import pipeline
+from transformers import pipeline, Pipeline
 
 HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"
 HF_API_TOKEN = os.getenv("HF_API_TOKEN", None)
 
-# Load a lightweight local fallback model lazily
-_local_pipeline = None
+_local_pipeline: Pipeline | None = None
 
+def _call_hf_api(prompt: str, max_length: int):
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"} if HF_API_TOKEN else {}
+    payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_length}}
+    resp = requests.post(HF_API_URL, headers=headers, json=payload, timeout=25)
+    return resp
 
 def generate_answer(prompt: str, max_length: int = 200) -> str:
     """
-    Generate an answer via Hugging Face API (free) or fallback to local model.
+    Try Hugging Face Inference API first (requires HF_API_TOKEN for private models / rate limits).
+    If that fails or times out, fallback to a local pipeline (CPU).
     """
     global _local_pipeline
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"} if HF_API_TOKEN else {}
 
+    # Try remote HF inference
     try:
-        # --- Try remote inference API first ---
-        payload = {"inputs": prompt, "parameters": {"max_new_tokens": max_length}}
-        resp = requests.post(HF_API_URL, headers=headers, json=payload, timeout=25)
-
+        resp = _call_hf_api(prompt, max_length)
         if resp.status_code == 200:
             data = resp.json()
-            if isinstance(data, list) and "generated_text" in data[0]:
+            # HF inference can return list or dict
+            if isinstance(data, list) and data and "generated_text" in data[0]:
                 return data[0]["generated_text"].strip()
             if isinstance(data, dict) and "generated_text" in data:
                 return data["generated_text"].strip()
-            print("HF API response format unexpected:", data)
+            # Some models return 'error' or different schema
+            print("HF API returned unexpected payload:", data)
         else:
-            print(f" HF API returned {resp.status_code}: {resp.text}")
-
+            print(f"HF API returned status {resp.status_code}: {resp.text}")
     except Exception as e:
-        print(f" HF API failed ({e}), switching to local model...")
+        print("HF API request failed:", e)
 
-    # --- Fallback to local generation ---
+    # Fallback to local model
     try:
         if _local_pipeline is None:
-            print("Loading local fallback model (flan-t5-small)...")
-            _local_pipeline = pipeline(
-                "text2text-generation",
-                model="google/flan-t5-small",
-                device=-1  # always CPU
-            )
-        out = _local_pipeline(prompt, max_length=max_length, clean_up_tokenization_spaces=True)
-        return out[0]["generated_text"].strip()
+            print("Loading local fallback model (google/flan-t5-small) on CPU...")
+            _local_pipeline = pipeline("text2text-generation", model="google/flan-t5-small", device=-1)
+        # pipeline returns list of dicts with 'generated_text'
+        out = _local_pipeline(prompt, max_length=max_length)
+        if isinstance(out, list) and out and "generated_text" in out[0]:
+            return out[0]["generated_text"].strip()
     except Exception as e:
-        print(f" Local model inference failed: {e}")
-        return "Sorry, I couldn’t generate an answer right now."
+        print("Local model inference failed:", e)
+
+    return "Sorry, I couldn’t generate an answer right now."

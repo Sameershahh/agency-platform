@@ -67,7 +67,7 @@ const blogPosts = [
 export default function Blog() {
   return (
     <>
-      <Navbar />
+     {/* <Navbar /> */}
       <main className="min-h-screen bg-background pt-32">
         {/* Header */}
         <section className="px-4 py-16 border-b border-border/20">

@@ -24,7 +24,7 @@ export default function ForgotPassword() {
 
   return (
     <>
-      <Navbar />
+      {/* <Navbar /> */}
       <main className="min-h-screen bg-background flex items-center justify-center px-4 relative overflow-hidden pt-28">
         {/* Background gradients */}
         <div className="absolute inset-0 -z-10">

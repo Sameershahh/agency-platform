@@ -52,7 +52,7 @@ export default function SignInPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <Navbar />
+     {/* <Navbar /> */}
       <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
         <motion.div
           className="w-full max-w-md"

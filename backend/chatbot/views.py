@@ -11,6 +11,7 @@ from .utils.text_extractor import extract_text_from_pdf
 from .utils.text_chunker import chunk_text
 from .utils.embedding_store import add_documents, query
 from .utils.model_inference import generate_answer
+from .utils.embedder import get_model
 
 
 class DocumentUploadView(generics.CreateAPIView):
@@ -106,3 +107,9 @@ class ChatView(APIView):
             "reply": reply.strip(),
             "sources": sources
         }, status=200)
+
+
+
+def embed_text(text):
+    model = get_model()
+    return model.encode(text)
