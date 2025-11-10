@@ -94,12 +94,12 @@ export default function Terms() {
           </motion.div>
         </article>
 
-        {/* Footer */}
+        {/* Footer 
         <footer className="border-t border-border/20 py-12 px-4 mt-16">
           <div className="max-w-4xl mx-auto text-center text-foreground/50">
             <p>&copy; 2025 NeuraStack Labs. All rights reserved.</p>
           </div>
-        </footer>
+        </footer> */}
       </main>
     </>
   )

@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.shortcuts import redirect
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils import timezone
 from .utils import verify_email_token, send_verification_email, generate_password_reset_token, verify_password_reset_token
 from django.core.mail import send_mail
 from .models import ContactMessage
@@ -35,27 +36,51 @@ class RegisterView(generics.CreateAPIView):
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        token = request.query_params.get("token")
-        if not token:
-            return Response({"detail": "Missing token"}, status=status.HTTP_400_BAD_REQUEST)
-        data = verify_email_token(token)
-        if not data:
-            return Response({"detail": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
-        user_id = data.get("user_id")
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    def post(self, request):
+        email = request.data.get("email")
+        code = request.data.get("code")
 
+        if not email or not code:
+            return Response(
+                {"detail": "Email and 6-digit code are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "No user found with this email."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # check code validity and expiry
+        if (
+            user.email_verification_code != code
+            or not user.email_verification_expiry
+            or user.email_verification_expiry < timezone.now()
+        ):
+            return Response(
+                {"detail": "Invalid or expired verification code."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # mark verified
         user.is_email_verified = True
         user.is_active = True
-        user.save()
+        user.email_verification_code = None
+        user.email_verification_expiry = None
+        user.save(update_fields=[
+            "is_email_verified",
+            "is_active",
+            "email_verification_code",
+            "email_verification_expiry",
+        ])
 
-        # Redirect to frontend success page with optional params
-        frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
-        redirect_url = f"{frontend_base}/email-verified"
-        return redirect("users:email-verified")
+        return Response(
+            {"message": "Email verified successfully."},
+            status=status.HTTP_200_OK
+        )
 
 # Google id_token auth view
 class GoogleAuthView(APIView):
@@ -162,18 +187,31 @@ class ResendVerificationEmailView(APIView):
     def post(self, request):
         email = request.data.get("email")
         if not email:
-            return Response({"detail": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"detail": "No user found with this email"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "No user found with this email."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         if user.is_email_verified:
-            return Response({"detail": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Email already verified."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Reuse your new utility function — it now sends a 6-digit code
         send_verification_email(user, request)
-        return Response({"detail": "Verification email resent successfully"}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Verification code resent to your email."},
+            status=status.HTTP_200_OK
+        )
 
 
 
@@ -209,6 +247,11 @@ class LogoutView(APIView):
             )
 
 class PasswordResetRequestView(APIView):
+    """
+    Accepts `{ "email": "user@example.com" }`.
+    Sends an email containing a backend redirect link:
+      {BACKEND_URL}/users/password-reset-redirect/<token>/
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -219,28 +262,83 @@ class PasswordResetRequestView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"detail": "No account found with this email"}, status=status.HTTP_404_NOT_FOUND)
+            # Keep response generic to avoid revealing whether the email exists
+            return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
 
         token = generate_password_reset_token(user)
-        reset_link = f"http://localhost:8000/password-reset-confirm/?token={token}"
 
-        # Send the reset email
+        # Use BACKEND_URL env setting — backend will receive click, set cookie, and redirect to FRONTEND_URL
+        backend_redirect_url = f"{settings.BACKEND_URL.rstrip('/')}/users/password-reset-redirect/{token}/"
+        # send mail (plaintext; you may replace with HTML template)
         send_mail(
             subject="Password Reset Request",
-            message=f"Click here to reset your password: {reset_link}",
+            message=f"Click the following link to reset your password. The link is valid for a short time:\n\n{backend_redirect_url}",
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
             fail_silently=False,
         )
 
-        return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
+        return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+
+
+class PasswordResetRedirectView(APIView):
+    """
+    GET /users/password-reset-redirect/<token>/
+    Verifies token, sets a short-lived HttpOnly cookie (password_reset) and redirects
+    to FRONTEND_URL/reset-password (no token in URL).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        # Verify token validity
+        data = verify_password_reset_token(token)
+        if not data:
+            # redirect to frontend page that explains invalid/expired link
+            redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password-invalid"
+            return HttpResponseRedirect(redirect_url)
+
+        # Token is valid: set short-lived HttpOnly cookie with the token and redirect to frontend reset page
+        redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
+        response = HttpResponseRedirect(redirect_url)
+
+        # Cookie settings (secure production defaults)
+        max_age = getattr(settings, "PASSWORD_RESET_COOKIE_AGE", 60 * 15)  # default 15 minutes
+        cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
+
+        cookie_args = {
+            "max_age": max_age,
+            "httponly": True,
+            "secure": True,       # must be True in production (HTTPS)
+            "samesite": "None",   # allow cross-site cookie when frontend & backend are on different origins
+            "path": "/",          # cookie accessible to backend endpoints
+        }
+
+        cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
+        if cookie_domain:
+            cookie_args["domain"] = cookie_domain
+
+        response.set_cookie(cookie_name, token, **cookie_args)
+
+        return response
 
 
 class PasswordResetConfirmView(APIView):
+    """
+    POST /users/password-reset-confirm/
+    Accepts { "new_password": "..." } and reads token from HttpOnly cookie (preferred)
+    Falls back to body token for backward compatibility/testing.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        token = request.data.get("token")
+        # Prefer token from cookie (HttpOnly)
+        cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
+        token = request.COOKIES.get(cookie_name)
+
+        # Backward-compatible fallback (if cookie isn't present)
+        if not token:
+            token = request.data.get("token")
+
         new_password = request.data.get("new_password")
 
         if not token or not new_password:
@@ -258,7 +356,18 @@ class PasswordResetConfirmView(APIView):
         user.set_password(new_password)
         user.save()
 
-        return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        # Optionally: revoke user sessions / tokens here if you manage them
+
+        # Build response and delete the password_reset cookie
+        response = Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+
+        cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
+        if cookie_domain:
+            response.delete_cookie(cookie_name, domain=cookie_domain, path="/")
+        else:
+            response.delete_cookie(cookie_name, path="/")
+
+        return response
 
 class IsAdminUser(permissions.BasePermission):
     """Allow access only to admin users."""

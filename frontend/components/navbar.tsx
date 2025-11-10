@@ -13,8 +13,8 @@ export function Navbar() {
     { label: "Services", href: "/services" },
     { label: "Dashboard", href: "/dashboard" },
     { label: "About", href: "/about" },
+    { label: "Careers", href: "/careers" }, 
     { label: "Contact", href: "/contact" },
-    { label: "Careers", href: "/careers" }, // ✅ added to link new page
   ]
 
   return (

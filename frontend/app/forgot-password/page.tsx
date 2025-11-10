@@ -5,16 +5,22 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { requestPasswordReset } from "@/lib/api"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Password reset requested for:", email)
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  try {
+    await requestPasswordReset(email)
     setSubmitted(true)
+  } catch (err) {
+    console.error("Error requesting password reset:", err)
+    alert("Failed to send reset link. Please try again.")
   }
+}
 
   return (
     <>
@@ -90,7 +96,7 @@ export default function ForgotPassword() {
           </motion.div>
         </div>
       </main>
-      <Footer />
+       {/* <Footer /> */}
     </>
   )
 }

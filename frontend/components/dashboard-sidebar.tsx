@@ -11,7 +11,7 @@ export function DashboardSidebar() {
     { icon: "📊", label: "Overview", href: "/dashboard" },
     { icon: "📈", label: "Analytics", href: "/dashboard/analytics" },
     { icon: "⚙️", label: "Settings", href: "/dashboard/settings" },
-    { icon: "👥", label: "Team", href: "/dashboard/team" },
+    { icon: "👥", label: "Portal", href: "/client-portal" },
     { icon: "🔐", label: "Security", href: "/dashboard/security" },
   ]
 

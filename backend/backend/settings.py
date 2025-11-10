@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'users',
     'chatbot',
     'projects',
+    'subscriptions',
 
     # Allauth
     'allauth',
@@ -111,6 +112,13 @@ ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
+
+PASSWORD_RESET_COOKIE_NAME = os.environ.get("PASSWORD_RESET_COOKIE_NAME", "password_reset")
+PASSWORD_RESET_COOKIE_AGE = int(os.environ.get("PASSWORD_RESET_COOKIE_AGE", 60 * 15))  # seconds
+PASSWORD_RESET_COOKIE_DOMAIN = os.environ.get("PASSWORD_RESET_COOKIE_DOMAIN", "")
 
 # --------------------------
 #  API / CORS

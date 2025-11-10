@@ -68,7 +68,7 @@ const detailedServices = [
 export default function ServicesPage() {
   return (
     <main className="min-h-screen bg-background">
-      <Navbar />
+      {/* <Navbar /> */}
 
       {/* Hero */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 border-b border-primary/10">
@@ -125,7 +125,7 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      <Footer />
+     {/* <Footer /> */}
     </main>
   )
 }

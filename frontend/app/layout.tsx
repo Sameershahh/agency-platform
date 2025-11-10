@@ -6,7 +6,6 @@ import "./globals.css"
 import { AIAssistant } from "@/components/ai-assistant"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { ClientLayout } from "./client-layout" 
 
 const manrope = Manrope({ subsets: ["latin"] })
 const _geist = Geist({ subsets: ["latin"] })
@@ -27,7 +26,9 @@ export default function RootLayout({
       <body
         className={`${manrope.className} font-sans antialiased bg-background text-foreground`}
       >
-        <ClientLayout>{children}</ClientLayout>
+        <Navbar />
+        {children}
+        <Footer />
         <AIAssistant />
         <Analytics />
       </body>

@@ -35,7 +35,7 @@ export async function registerUser(email: string, password1: string, password2: 
 }
 
 
-export async function loginUser(username: string, password: string) {
+export async function loginWithJWT(username: string, password: string) {
   try {
     const res = await fetch('http://127.0.0.1:8000/api/token/', {
       method: 'POST',

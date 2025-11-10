@@ -56,7 +56,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background overflow-hidden">
-      <Navbar />
+     {/* <Navbar /> */}
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8">
@@ -245,7 +245,7 @@ export default function Home() {
         </div>
       </section>
 
-      <Footer />
+      {/* <Footer /> */}
     </main>
   )
 }

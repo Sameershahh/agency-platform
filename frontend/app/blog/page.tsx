@@ -151,7 +151,7 @@ export default function Blog() {
           </div>
         </section>
 
-        <Footer />
+        {/* <Footer /> */}
       </main>
     </>
   )

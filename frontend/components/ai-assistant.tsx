@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MessageCircle, Send, X, Minimize2 } from "lucide-react"
+import { sendChatMessage } from "@/lib/api"
 
 interface Message {
   id: string
@@ -24,7 +25,7 @@ export function AIAssistant() {
   ])
   const [input, setInput] = useState("")
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!input.trim()) return
 
     const userMessage: Message = {
@@ -37,16 +38,29 @@ export function AIAssistant() {
     setMessages((prev) => [...prev, userMessage])
     setInput("")
 
-    // Simulate assistant response
-    setTimeout(() => {
+    try {
+      // Send message to backend
+      const data = await sendChatMessage(input)
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Thank you for your message! Our team will get back to you shortly with more information about NeuraStack's AI solutions.",
+        text: data.reply || "No response from assistant.",
         sender: "assistant",
         timestamp: new Date(),
       }
+
       setMessages((prev) => [...prev, assistantMessage])
-    }, 1000)
+    } catch (error: any) {
+      // Fallback for network or backend issues
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        text: error.message || "Error connecting to assistant.",
+        sender: "assistant",
+        timestamp: new Date(),
+      }
+
+      setMessages((prev) => [...prev, errorMessage])
+    }
   }
 
   return (

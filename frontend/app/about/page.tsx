@@ -23,7 +23,7 @@ const team = [
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-background">
-      <Navbar />
+      {/* <Navbar /> */}
 
       {/* Hero */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8">
@@ -145,7 +145,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <Footer />
+      {/* <Footer /> */}
     </main>
   )
 }

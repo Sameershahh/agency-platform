@@ -22,7 +22,8 @@ export default function ProtectedRoute({
     }
   }, [router]);
 
-  if (isAuth === null) return null; // optional loader could go here
+  if (isAuth === null) return null; 
 
   return <>{children}</>;
 }
+

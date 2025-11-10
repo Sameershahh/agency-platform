@@ -51,8 +51,8 @@ export default function SignUpPage() {
         return
       }
 
-      alert(" Account created successfully! Please verify your email before logging in.")
-      window.location.href = "/signin"
+      alert("Account created successfully! Proceed to 2FA verification.")
+      window.location.href = `/verify-2fa?email=${encodeURIComponent(email)}`
     } catch (error) {
       console.error("Registration error:", error)
       alert("Something went wrong. Please check your internet connection and try again.")
