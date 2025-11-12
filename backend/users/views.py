@@ -20,6 +20,7 @@ from django.core.mail import send_mail
 from .models import ContactMessage
 from django.utils.crypto import get_random_string
 
+
 User = get_user_model()
 
 class RegisterView(generics.CreateAPIView):
@@ -248,6 +249,10 @@ class LogoutView(APIView):
             )
 
 
+
+
+from django.conf import settings
+
 class PasswordResetRequestView(APIView):
     """
     POST /api/password-reset-request/
@@ -265,34 +270,33 @@ class PasswordResetRequestView(APIView):
 
         user = User.objects.filter(email=email).first()
         if not user:
-            # Security: Don't reveal if user exists (prevents email enumeration)
+            # Security: Don't reveal if user exists
             return Response(
                 {"message": "If an account exists with this email, you will receive password reset instructions."},
                 status=status.HTTP_200_OK
             )
 
-        # Generate JWT-like reset token for link-based reset
+        # Generate reset token and code
         token = generate_password_reset_token(user)
-
-        # Generate optional 6-digit code for manual reset flow
         code = get_random_string(length=6, allowed_chars='0123456789')
         user.password_reset_code = code
         user.password_reset_expiry = timezone.now() + timezone.timedelta(minutes=15)
         user.save(update_fields=['password_reset_code', 'password_reset_expiry'])
 
-        # Build reset link using backend URL
-        reset_link = f"{settings.BACKEND_URL.rstrip('/')}/api/password-reset-redirect/{token}/"
+        # Build FRONTEND reset link (not backend!)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        reset_link = f"{frontend_url.rstrip('/')}/reset-password?token={token}"
 
-        # Send email with both code and link
+        # Send email
         try:
             send_mail(
                 subject="Password Reset Request",
                 message=(
                     f"Hello,\n\n"
                     f"You requested to reset your password.\n\n"
-                    f"Your password reset code is: {code}\n"
+                    f"Your 6-digit password reset code is: {code}\n"
                     f"This code will expire in 15 minutes.\n\n"
-                    f"Alternatively, click the link below to reset via browser:\n{reset_link}\n\n"
+                    f"Alternatively, you can click this link to reset your password:\n{reset_link}\n\n"
                     f"If you didn't request this, please ignore this email.\n"
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
@@ -300,11 +304,9 @@ class PasswordResetRequestView(APIView):
                 fail_silently=False,
             )
         except Exception as e:
-            # Log error but don't expose to user
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to send password reset email: {str(e)}")
-            
             return Response(
                 {"error": "Failed to send email. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -316,114 +318,88 @@ class PasswordResetRequestView(APIView):
         )
 
 
-class PasswordResetRedirectView(APIView):
+class PasswordResetVerifyView(APIView):
     """
-    GET /api/password-reset-redirect/<token>/
-    Verifies token, sets a short-lived HttpOnly cookie and redirects to frontend.
+    GET /api/password-reset-verify/<token>/
+    Verifies if the token is valid (no redirects, backend only).
     """
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        # Verify token validity
         data = verify_password_reset_token(token)
-        
-        # Determine frontend URL based on environment
-        frontend_url = "http://localhost:3000" if settings.DEBUG else settings.FRONTEND_URL
-        
         if not data:
-            redirect_url = f"{frontend_url.rstrip('/')}/reset-password-invalid"
-            return HttpResponseRedirect(redirect_url)
-
-        redirect_url = f"{frontend_url.rstrip('/')}/reset-password"
-        response = HttpResponseRedirect(redirect_url)
-
-        max_age = getattr(settings, "PASSWORD_RESET_COOKIE_AGE", 60 * 15)
-        cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
-
-        if settings.DEBUG:
-            # Development: Lax + not secure (works with HTTP localhost)
-            cookie_args = {
-                "max_age": max_age,
-                "httponly": True,
-                "secure": False,
-                "samesite": "Lax",
-                "path": "/",
-            }
-        else:
-            # Production: None + secure (works with HTTPS cross-origin)
-            cookie_args = {
-                "max_age": max_age,
-                "httponly": True,
-                "secure": True,
-                "samesite": "None",
-                "path": "/",
-            }
-            cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
-            if cookie_domain:
-                cookie_args["domain"] = cookie_domain
-
-        response.set_cookie(cookie_name, token, **cookie_args)
-        return response
+            return Response(
+                {"valid": False, "detail": "Invalid or expired token."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(
+            {"valid": True, "detail": "Token is valid."},
+            status=status.HTTP_200_OK
+        )
 
 
 class PasswordResetConfirmView(APIView):
     """
     POST /api/password-reset-confirm/
-    Accepts new password and reads token from HttpOnly cookie.
-    Falls back to body token for backward compatibility.
+    Accepts new password with token or 6-digit code.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
-        token = request.COOKIES.get(cookie_name)
-
-        if not token:
-            token = request.data.get("token")
-
+        token = request.data.get("token")
+        code = request.data.get("code")
         new_password = request.data.get("new_password")
 
-        if not token or not new_password:
+        if not new_password:
             return Response(
-                {"detail": "Token and new password are required."}, 
+                {"detail": "New password is required."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        data = verify_password_reset_token(token)
-        if not data:
+        user = None
+
+        # Token-based reset
+        if token:
+            data = verify_password_reset_token(token)
+            if not data:
+                return Response(
+                    {"detail": "Invalid or expired token."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user = User.objects.filter(id=data.get("user_id")).first()
+
+        # Code-based reset
+        elif code:
+            user = User.objects.filter(password_reset_code=code).first()
+            if not user or not user.password_reset_expiry or timezone.now() > user.password_reset_expiry:
+                return Response(
+                    {"detail": "Invalid or expired code."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        else:
             return Response(
-                {"detail": "Invalid or expired token."}, 
+                {"detail": "Either token or 6-digit code is required."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            user = User.objects.get(id=data.get("user_id"))
-        except User.DoesNotExist:
+        if not user:
             return Response(
                 {"detail": "User not found."}, 
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Set new password
         user.set_password(new_password)
         user.password_reset_code = None
         user.password_reset_expiry = None
         user.save(update_fields=['password', 'password_reset_code', 'password_reset_expiry'])
 
-        response = Response(
+        return Response(
             {"message": "Password has been reset successfully."}, 
             status=status.HTTP_200_OK
         )
 
-        if settings.DEBUG:
-            response.delete_cookie(cookie_name, path="/", samesite="Lax")
-        else:
-            delete_kwargs = {"path": "/", "samesite": "None", "secure": True}
-            cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
-            if cookie_domain:
-                delete_kwargs["domain"] = cookie_domain
-            response.delete_cookie(cookie_name, **delete_kwargs)
-
-        return response
 
 class IsAdminUser(permissions.BasePermission):
     """Allow access only to admin users."""

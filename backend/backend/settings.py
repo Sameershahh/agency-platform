@@ -185,6 +185,10 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+
 # ----------------------------------------------------------------------
 #  REST Framework
 # ----------------------------------------------------------------------

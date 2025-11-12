@@ -13,79 +13,154 @@ os.makedirs(VECTOR_STORE_DIR, exist_ok=True)
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
-def _load_model():
-    """Load SentenceTransformer model and ensure it's on CPU."""
-    try:
-        model = SentenceTransformer(MODEL_NAME)
-        # SentenceTransformer handles device selection; ensure CPU usage
-        # (if you later want GPU, set device="cuda" explicitly when available)
-        print("Embedding model loaded:", MODEL_NAME)
-        return model
-    except Exception as e:
-        print("Failed to load embedding model:", e)
-        raise
-
-# instantiate once
+# Global model instance (lazy loaded)
 _model = None
 
 def get_model():
     """Lazy load embedding model only when first used."""
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer(MODEL_NAME, device="cpu")
+        try:
+            _model = SentenceTransformer(MODEL_NAME, device="cpu")
+            print(f"✓ Embedding model loaded: {MODEL_NAME}")
+        except Exception as e:
+            print(f"✗ Failed to load embedding model: {e}")
+            raise
     return _model
 
 def _save_docs_metadata(docs_meta):
+    """Save document metadata to JSON file."""
     with open(DOCS_PATH, "w", encoding="utf-8") as f:
         json.dump(docs_meta, f, ensure_ascii=False, indent=2)
 
 def _load_docs_metadata():
-    return json.load(open(DOCS_PATH, "r", encoding="utf-8")) if os.path.exists(DOCS_PATH) else []
+    """Load document metadata from JSON file."""
+    if os.path.exists(DOCS_PATH):
+        with open(DOCS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
 
 def build_index(text_chunks, metadatas):
     """Build or rebuild FAISS index from scratch."""
     if not text_chunks:
+        # Clean up if no chunks provided
         if os.path.exists(INDEX_PATH):
             os.remove(INDEX_PATH)
-        _save_docs_metadata([])
+        if os.path.exists(DOCS_PATH):
+            os.remove(DOCS_PATH)
+        print("✓ Index cleared (no documents)")
         return
 
-    model = get_model()  # ensure model is loaded here
-    embeddings = model.encode(text_chunks, show_progress_bar=False, convert_to_numpy=True)
-    dim = embeddings.shape[1]
-    index = faiss.IndexFlatL2(dim)
-    index.add(embeddings.astype("float32"))
-    faiss.write_index(index, INDEX_PATH)
-    _save_docs_metadata([{"text": t, "meta": m} for t, m in zip(text_chunks, metadatas)])
+    try:
+        model = get_model()  # ✓ Correctly loads model
+        print(f"Building index for {len(text_chunks)} chunks...")
+        
+        embeddings = model.encode(
+            text_chunks, 
+            show_progress_bar=False, 
+            convert_to_numpy=True
+        )
+        
+        dim = embeddings.shape[1]
+        index = faiss.IndexFlatL2(dim)
+        index.add(embeddings.astype("float32"))
+        
+        faiss.write_index(index, INDEX_PATH)
+        _save_docs_metadata([
+            {"text": t, "meta": m} 
+            for t, m in zip(text_chunks, metadatas)
+        ])
+        
+        print(f"✓ Index built successfully: {len(text_chunks)} chunks indexed")
+        
+    except Exception as e:
+        print(f"✗ Error building index: {e}")
+        raise
 
 def add_documents(text_chunks, metadatas):
     """Append to existing FAISS index (creates index if missing)."""
     if not text_chunks:
+        print("No chunks to add")
         return
 
-    if os.path.exists(INDEX_PATH):
-        index = faiss.read_index(INDEX_PATH)
-        docs = _load_docs_metadata()
-        new_embs = _model.encode(text_chunks, show_progress_bar=False, convert_to_numpy=True)
-        index.add(new_embs.astype("float32"))
-        faiss.write_index(index, INDEX_PATH)
-        docs.extend([{"text": t, "meta": m} for t, m in zip(text_chunks, metadatas)])
-        _save_docs_metadata(docs)
-        print(f"Appended {len(text_chunks)} chunks to existing index (now {len(docs)} total).")
-    else:
-        build_index(text_chunks, metadatas)
+    try:
+        model = get_model()  # ✓ FIX: Get model instance
+        
+        if os.path.exists(INDEX_PATH):
+            # Append to existing index
+            index = faiss.read_index(INDEX_PATH)
+            docs = _load_docs_metadata()
+            
+            new_embs = model.encode(  # ✓ Use model variable
+                text_chunks, 
+                show_progress_bar=False, 
+                convert_to_numpy=True
+            )
+            
+            index.add(new_embs.astype("float32"))
+            faiss.write_index(index, INDEX_PATH)
+            
+            docs.extend([
+                {"text": t, "meta": m} 
+                for t, m in zip(text_chunks, metadatas)
+            ])
+            _save_docs_metadata(docs)
+            
+            print(f"✓ Appended {len(text_chunks)} chunks (total: {len(docs)})")
+        else:
+            # No existing index, build from scratch
+            print("No existing index found, building new one...")
+            build_index(text_chunks, metadatas)
+            
+    except Exception as e:
+        print(f"✗ Error adding documents: {e}")
+        raise
 
 def query(query_text, top_k=3):
-    """Return list of docs: each item is {'text':..., 'meta':...}"""
-    if not os.path.exists(INDEX_PATH):
+    """
+    Search for similar documents.
+    Returns: List of dicts with 'text' and 'meta' keys.
+    """
+    if not query_text or not query_text.strip():
+        print("⚠ Empty query provided")
         return []
-    index = faiss.read_index(INDEX_PATH)
-    docs = _load_docs_metadata()
-    q_emb = _model.encode([query_text], convert_to_numpy=True)
-    D, I = index.search(q_emb.astype("float32"), top_k)
-    results = []
-    for i in I[0]:
-        if 0 <= i < len(docs):
-            results.append(docs[i])
-    return results
+    
+    if not os.path.exists(INDEX_PATH):
+        print("⚠ No index found, returning empty results")
+        return []
+    
+    try:
+        model = get_model()  # ✓ FIX: Get model instance
+        index = faiss.read_index(INDEX_PATH)
+        docs = _load_docs_metadata()
+        
+        if not docs:
+            print("⚠ Index exists but no documents found")
+            return []
+        
+        # Encode query
+        q_emb = model.encode(  # ✓ Use model variable
+            [query_text], 
+            convert_to_numpy=True
+        )
+        
+        # Search index
+        D, I = index.search(q_emb.astype("float32"), min(top_k, len(docs)))
+        
+        # Collect results
+        results = []
+        for idx in I[0]:
+            if 0 <= idx < len(docs):
+                results.append(docs[idx])
+        
+        print(f"✓ Query returned {len(results)} results")
+        return results
+        
+    except Exception as e:
+        print(f"✗ Error during query: {e}")
+        # Don't raise in query - return empty results gracefully
+        return []
+
+# Optional: Preload model on module import (if you want eager loading)
+# Uncomment the line below if you want the model loaded immediately
+# get_model()
