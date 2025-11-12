@@ -13,11 +13,12 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import get_user_model, authenticate
 from django.shortcuts import redirect
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect  
 from django.utils import timezone
 from .utils import verify_email_token, send_verification_email, generate_password_reset_token, verify_password_reset_token
 from django.core.mail import send_mail
 from .models import ContactMessage
+from django.utils.crypto import get_random_string
 
 User = get_user_model()
 
@@ -246,126 +247,181 @@ class LogoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+
 class PasswordResetRequestView(APIView):
     """
-    Accepts `{ "email": "user@example.com" }`.
-    Sends an email containing a backend redirect link:
-      {BACKEND_URL}/users/password-reset-redirect/<token>/
+    POST /api/password-reset-request/
+    Generates password reset token and sends email with reset link and 6-digit code.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
+        email = request.data.get('email')
         if not email:
-            return Response({"detail": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Email is required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # Keep response generic to avoid revealing whether the email exists
-            return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+        user = User.objects.filter(email=email).first()
+        if not user:
+            # Security: Don't reveal if user exists (prevents email enumeration)
+            return Response(
+                {"message": "If an account exists with this email, you will receive password reset instructions."},
+                status=status.HTTP_200_OK
+            )
 
+        # Generate JWT-like reset token for link-based reset
         token = generate_password_reset_token(user)
 
-        # Use BACKEND_URL env setting — backend will receive click, set cookie, and redirect to FRONTEND_URL
-        backend_redirect_url = f"{settings.BACKEND_URL.rstrip('/')}/users/password-reset-redirect/{token}/"
-        # send mail (plaintext; you may replace with HTML template)
-        send_mail(
-            subject="Password Reset Request",
-            message=f"Click the following link to reset your password. The link is valid for a short time:\n\n{backend_redirect_url}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        # Generate optional 6-digit code for manual reset flow
+        code = get_random_string(length=6, allowed_chars='0123456789')
+        user.password_reset_code = code
+        user.password_reset_expiry = timezone.now() + timezone.timedelta(minutes=15)
+        user.save(update_fields=['password_reset_code', 'password_reset_expiry'])
 
-        return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+        # Build reset link using backend URL
+        reset_link = f"{settings.BACKEND_URL.rstrip('/')}/api/password-reset-redirect/{token}/"
+
+        # Send email with both code and link
+        try:
+            send_mail(
+                subject="Password Reset Request",
+                message=(
+                    f"Hello,\n\n"
+                    f"You requested to reset your password.\n\n"
+                    f"Your password reset code is: {code}\n"
+                    f"This code will expire in 15 minutes.\n\n"
+                    f"Alternatively, click the link below to reset via browser:\n{reset_link}\n\n"
+                    f"If you didn't request this, please ignore this email.\n"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log error but don't expose to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send password reset email: {str(e)}")
+            
+            return Response(
+                {"error": "Failed to send email. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {"message": "If an account exists with this email, you will receive password reset instructions."},
+            status=status.HTTP_200_OK
+        )
 
 
 class PasswordResetRedirectView(APIView):
     """
-    GET /users/password-reset-redirect/<token>/
-    Verifies token, sets a short-lived HttpOnly cookie (password_reset) and redirects
-    to FRONTEND_URL/reset-password (no token in URL).
+    GET /api/password-reset-redirect/<token>/
+    Verifies token, sets a short-lived HttpOnly cookie and redirects to frontend.
     """
     permission_classes = [AllowAny]
 
     def get(self, request, token):
         # Verify token validity
         data = verify_password_reset_token(token)
+        
+        # Determine frontend URL based on environment
+        frontend_url = "http://localhost:3000" if settings.DEBUG else settings.FRONTEND_URL
+        
         if not data:
-            # redirect to frontend page that explains invalid/expired link
-            redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password-invalid"
+            redirect_url = f"{frontend_url.rstrip('/')}/reset-password-invalid"
             return HttpResponseRedirect(redirect_url)
 
-        # Token is valid: set short-lived HttpOnly cookie with the token and redirect to frontend reset page
-        redirect_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
+        redirect_url = f"{frontend_url.rstrip('/')}/reset-password"
         response = HttpResponseRedirect(redirect_url)
 
-        # Cookie settings (secure production defaults)
-        max_age = getattr(settings, "PASSWORD_RESET_COOKIE_AGE", 60 * 15)  # default 15 minutes
+        max_age = getattr(settings, "PASSWORD_RESET_COOKIE_AGE", 60 * 15)
         cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
 
-        cookie_args = {
-            "max_age": max_age,
-            "httponly": True,
-            "secure": True,       # must be True in production (HTTPS)
-            "samesite": "None",   # allow cross-site cookie when frontend & backend are on different origins
-            "path": "/",          # cookie accessible to backend endpoints
-        }
-
-        cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
-        if cookie_domain:
-            cookie_args["domain"] = cookie_domain
+        if settings.DEBUG:
+            # Development: Lax + not secure (works with HTTP localhost)
+            cookie_args = {
+                "max_age": max_age,
+                "httponly": True,
+                "secure": False,
+                "samesite": "Lax",
+                "path": "/",
+            }
+        else:
+            # Production: None + secure (works with HTTPS cross-origin)
+            cookie_args = {
+                "max_age": max_age,
+                "httponly": True,
+                "secure": True,
+                "samesite": "None",
+                "path": "/",
+            }
+            cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
+            if cookie_domain:
+                cookie_args["domain"] = cookie_domain
 
         response.set_cookie(cookie_name, token, **cookie_args)
-
         return response
 
 
 class PasswordResetConfirmView(APIView):
     """
-    POST /users/password-reset-confirm/
-    Accepts { "new_password": "..." } and reads token from HttpOnly cookie (preferred)
-    Falls back to body token for backward compatibility/testing.
+    POST /api/password-reset-confirm/
+    Accepts new password and reads token from HttpOnly cookie.
+    Falls back to body token for backward compatibility.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Prefer token from cookie (HttpOnly)
         cookie_name = getattr(settings, "PASSWORD_RESET_COOKIE_NAME", "password_reset")
         token = request.COOKIES.get(cookie_name)
 
-        # Backward-compatible fallback (if cookie isn't present)
         if not token:
             token = request.data.get("token")
 
         new_password = request.data.get("new_password")
 
         if not token or not new_password:
-            return Response({"detail": "Token and new password are required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Token and new password are required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         data = verify_password_reset_token(token)
         if not data:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid or expired token."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(id=data.get("user_id"))
         except User.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "User not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         user.set_password(new_password)
-        user.save()
+        user.password_reset_code = None
+        user.password_reset_expiry = None
+        user.save(update_fields=['password', 'password_reset_code', 'password_reset_expiry'])
 
-        # Optionally: revoke user sessions / tokens here if you manage them
+        response = Response(
+            {"message": "Password has been reset successfully."}, 
+            status=status.HTTP_200_OK
+        )
 
-        # Build response and delete the password_reset cookie
-        response = Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
-
-        cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
-        if cookie_domain:
-            response.delete_cookie(cookie_name, domain=cookie_domain, path="/")
+        if settings.DEBUG:
+            response.delete_cookie(cookie_name, path="/", samesite="Lax")
         else:
-            response.delete_cookie(cookie_name, path="/")
+            delete_kwargs = {"path": "/", "samesite": "None", "secure": True}
+            cookie_domain = getattr(settings, "PASSWORD_RESET_COOKIE_DOMAIN", None)
+            if cookie_domain:
+                delete_kwargs["domain"] = cookie_domain
+            response.delete_cookie(cookie_name, **delete_kwargs)
 
         return response
 
