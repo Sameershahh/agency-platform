@@ -17,6 +17,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
+if os.getenv("ENABLE_CHATBOT", "false").lower() == "true":
+    urlpatterns += [path("chatbot/", include("chatbot.urls"))]
+
 # ----------------------------------------------------------------------
 #  Core Environment
 # ----------------------------------------------------------------------
@@ -81,7 +84,7 @@ INSTALLED_APPS = [
 
     # Project apps
     'users',
-    'chatbot',
+    #'chatbot',
     'projects',
     'subscriptions',
 
