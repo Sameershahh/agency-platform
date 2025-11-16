@@ -28,7 +28,14 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()  # "production" or
 #  Hosts and Security
 # ----------------------------------------------------------------------
 # Default hosts (safe fallback)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "neurastack-agency.vercel.app").split(",")
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "agency-platform-i9os.onrender.com,neurastack-agency.vercel.app"
+).split(",")
+
+# Strip whitespace
+ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
+
 
 # Add localhost automatically in dev
 if DEBUG or ENVIRONMENT == "development":
