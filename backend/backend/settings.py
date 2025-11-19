@@ -148,6 +148,15 @@ else:
         }
     }
 
+if ENVIRONMENT == "production":
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL is required in production")
+    DATABASES = {
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+    }
+
+
 # ----------------------------------------------------------------------
 #  Authentication
 # ----------------------------------------------------------------------
