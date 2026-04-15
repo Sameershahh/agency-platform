@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { Mail, Lock, Github } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { loginUser } from "@/lib/auth";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -15,39 +16,17 @@ export default function SignInPage() {
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  try {
-    const res = await fetch("http://127.0.0.1:8000/api/token/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-      }),
-    });
-
-    if (!res.ok) {
-      if (res.status === 401) throw new Error("Invalid username or password");
-      throw new Error("Login failed. Please try again later.");
+    try {
+      await loginUser(email, password);
+      // Redirect to dashboard
+      router.replace("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong during login");
     }
-
-    const data = await res.json();
-
-    //  Store tokens securely
-    localStorage.setItem("access", data.access);
-    localStorage.setItem("refresh", data.refresh);
-
-    //  Optional: store username/email for UI personalization
-    localStorage.setItem("user_email", email);
-
-    //  Redirect to dashboard
-    router.replace("/dashboard");
-  } catch (err: any) {
-    setError(err.message || "Something went wrong during login");
-  }
-};
+  };
 
 
   return (

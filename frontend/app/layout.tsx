@@ -4,8 +4,7 @@ import { Manrope, Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AIAssistant } from "@/components/ai-assistant"
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
+import ConditionalLayout from "@/components/ConditionalLayout"
 
 const manrope = Manrope({ subsets: ["latin"] })
 const _geist = Geist({ subsets: ["latin"] })
@@ -26,9 +25,9 @@ export default function RootLayout({
       <body
         className={`${manrope.className} font-sans antialiased bg-background text-foreground`}
       >
-        <Navbar />
-        {children}
-        <Footer />
+        <ConditionalLayout>
+          {children}
+        </ConditionalLayout>
         <AIAssistant />
         <Analytics />
       </body>

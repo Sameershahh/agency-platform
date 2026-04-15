@@ -1,9 +1,11 @@
 """
 Django settings for backend project.
 Professional dual-environment configuration (Dev + Prod)
+AWS DEPLOYMENT READY VERSION
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 from dotenv import load_dotenv
 import environ
 import dj_database_url
@@ -28,35 +30,35 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()  # "production" or
 # ----------------------------------------------------------------------
 #  Hosts and Security
 # ----------------------------------------------------------------------
-# Default hosts (safe fallback)
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "agency-platform-i9os.onrender.com,neurastack-agency.vercel.app"
-).split(",")
-
-# Strip whitespace
+# Get hosts from environment variable
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
 
+# Add environment-specific defaults
+if ENVIRONMENT == "production":
+    ALLOWED_HOSTS += [
+        ".elasticbeanstalk.com",  # AWS Elastic Beanstalk
+        ".compute.amazonaws.com",  # AWS EC2
+    ]
 
-# Add localhost automatically in dev
 if DEBUG or ENVIRONMENT == "development":
     ALLOWED_HOSTS += ["127.0.0.1", "localhost", "localhost:8000", "127.0.0.1:8000"]
 
 # Security settings (strict in prod, relaxed in dev)
-if DEBUG or ENVIRONMENT == "development":
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SECURE_HSTS_SECONDS = 0
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
-else:
+if ENVIRONMENT == "production":
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -82,7 +84,7 @@ INSTALLED_APPS = [
 
     # Project apps
     'users',
-    #'chatbot',
+    # 'chatbot',  # Uncomment if you need chatbot functionality
     'projects',
     'subscriptions',
 
@@ -129,33 +131,28 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 # ----------------------------------------------------------------------
-#  Database
+#  Database - FIXED: Removed duplicate configuration
 # ----------------------------------------------------------------------
 if ENVIRONMENT == "production":
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL is required in production. Please set it in AWS environment variables.")
+    
     DATABASES = {
         "default": dj_database_url.parse(
-            os.getenv("DATABASE_URL"),
-            conn_max_age=600,
-            ssl_require=True,
+            DATABASE_URL, 
+            conn_max_age=600, 
+            ssl_require=True
         )
     }
 else:
-    # Local development / testing uses SQLite
+    # Local development uses SQLite
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
-
-if ENVIRONMENT == "production":
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL is required in production")
-    DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
-    }
-
 
 # ----------------------------------------------------------------------
 #  Authentication
@@ -168,50 +165,93 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/'
-
 # ----------------------------------------------------------------------
 #  URLs / Frontend
 # ----------------------------------------------------------------------
 if ENVIRONMENT == "production":
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neurastack-agency.vercel.app")
-    BACKEND_URL = os.environ.get("BACKEND_URL", "https://your-backend.onrender.com")
+    BACKEND_URL = os.environ.get("BACKEND_URL")
+    if not BACKEND_URL:
+        raise Exception("BACKEND_URL is required in production. Set it to your AWS EB URL.")
 else:
-    # Force localhost in development
     FRONTEND_URL = "http://localhost:3000"
     BACKEND_URL = "http://127.0.0.1:8000"
 
+# ----------------------------------------------------------------------
+#  Allauth Configuration - ENHANCED
+# ----------------------------------------------------------------------
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+
+# Redirect URLs
+LOGIN_URL = f"{FRONTEND_URL}/login"
+LOGIN_REDIRECT_URL = f"{FRONTEND_URL}/dashboard"
+LOGOUT_REDIRECT_URL = FRONTEND_URL
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = f"{FRONTEND_URL}/email-confirmed"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"{FRONTEND_URL}/dashboard"
+
+# Password Reset Cookies
 PASSWORD_RESET_COOKIE_NAME = os.environ.get("PASSWORD_RESET_COOKIE_NAME", "password_reset")
 PASSWORD_RESET_COOKIE_AGE = int(os.environ.get("PASSWORD_RESET_COOKIE_AGE", 60 * 15))
 PASSWORD_RESET_COOKIE_DOMAIN = os.environ.get("PASSWORD_RESET_COOKIE_DOMAIN", "")
 
 # ----------------------------------------------------------------------
-#  CORS
+#  CORS - FIXED: Environment-specific configuration
 # ----------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [
-    "https://neurastack-agency.vercel.app",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+
+if ENVIRONMENT == "production":
+    CORS_ALLOWED_ORIGINS = [
+        "https://neurastack-agency.vercel.app",
+        BACKEND_URL,  # Allow backend to call itself
+    ]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
 CORS_ALLOW_CREDENTIALS = True
 
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+# ----------------------------------------------------------------------
+#  CSRF Protection - ADDED: Missing configuration
+# ----------------------------------------------------------------------
+CSRF_TRUSTED_ORIGINS = [
+    "https://neurastack-agency.vercel.app",
+    "https://*.elasticbeanstalk.com",
+]
 
+if DEBUG or ENVIRONMENT == "development":
+    CSRF_TRUSTED_ORIGINS += [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+# Cookie settings
+if ENVIRONMENT == "production":
+    SESSION_COOKIE_SAMESITE = "None"  # Required for cross-origin
+    CSRF_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+else:
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # ----------------------------------------------------------------------
 #  REST Framework
 # ----------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'users.authentication.CookieJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -219,15 +259,49 @@ REST_FRAMEWORK = {
 }
 
 # ----------------------------------------------------------------------
-#  Email
+#  JWT Configuration - ADDED: Missing JWT settings
 # ----------------------------------------------------------------------
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    
+    # Cookie-based JWT
+    'AUTH_COOKIE': 'access_token',            # Name of the cookie
+    'AUTH_COOKIE_REFRESH': 'refresh_token',   # Name of the refresh cookie
+    'AUTH_COOKIE_SECURE': ENVIRONMENT == "production",
+    'AUTH_COOKIE_HTTP_ONLY': True,            # Forbidden from JavaScript
+    'AUTH_COOKIE_SAMESITE': 'None' if ENVIRONMENT == "production" else 'Lax',
+    'AUTH_COOKIE_PATH': '/',
+}
+
+# ----------------------------------------------------------------------
+#  Email - ENHANCED: Use SMTP if credentials provided, else console
+# ----------------------------------------------------------------------
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@example.com")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+if EMAIL_HOST_USER:
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", f"NeuraStack <{EMAIL_HOST_USER}>")
+    # If we have credentials, use SMTP backend unless overridden
+    if not os.getenv("EMAIL_BACKEND"):
+        EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    # Fallback for dev without credentials
+    if ENVIRONMENT != "production":
+        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+        DEFAULT_FROM_EMAIL = "noreply@localhost"
+    else:
+        DEFAULT_FROM_EMAIL = "noreply@example.com"
 
 # ----------------------------------------------------------------------
 #  External Services
@@ -237,11 +311,15 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 
 # ----------------------------------------------------------------------
-#  Static Files
+#  Static & Media Files
 # ----------------------------------------------------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Media files (if you're uploading documents/images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ----------------------------------------------------------------------
 #  Internationalization
@@ -254,16 +332,39 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ----------------------------------------------------------------------
-#  Logging 
+#  Logging - Enhanced with more detail
 # ----------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
     },
     "root": {
         "handlers": ["console"],
         "level": "INFO" if ENVIRONMENT == "production" else "DEBUG",
     },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
+
+# ----------------------------------------------------------------------
+#  Development/Debug Settings
+# ----------------------------------------------------------------------
+if DEBUG:
+    # Show more detailed error pages in development
+    INTERNAL_IPS = ['127.0.0.1', 'localhost']

@@ -6,6 +6,8 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { Mail, Lock, User } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { registerUser } from "@/lib/auth"
 
 export default function SignUpPage() {
   const [name, setName] = useState("")
@@ -14,57 +16,35 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (password !== confirmPassword) {
-    alert("Passwords do not match.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await fetch("http://127.0.0.1:8000/api/register/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        full_name: name,
-        email,
-        password,
-        confirm_password: confirmPassword,
-      }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      let errMsg = "Failed to register. Please try again.";
-      if (data?.detail) errMsg = data.detail;
-      else if (data?.message) errMsg = data.message;
-      else if (typeof data === "object")
-        errMsg = Object.values(data).flat().join(" ") || errMsg;
-
-      alert(errMsg);
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
       return;
     }
 
-    //  Save pending verification state
-    localStorage.setItem("pending_verification", "true");
+    setLoading(true);
 
-    alert("Account created successfully! Proceed to 2FA verification.");
+    try {
+      await registerUser(email, name, password, confirmPassword);
 
-    //  Use router.push for SPA behavior
-    window.location.href = `/verify-2fa?email=${encodeURIComponent(email)}`;
-  } catch (error) {
-    console.error("Registration error:", error);
-    alert("Something went wrong. Please check your internet connection and try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+      //  Save pending verification state if needed
+      localStorage.setItem("pending_verification", "true");
+
+      alert("Account created successfully! Please check your email for the verification code.");
+
+      //  Redirect to verification page
+      router.push(`/verify-2fa?email=${encodeURIComponent(email)}`);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      alert(error.message || "Something went wrong. Please check your data and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <main className="min-h-screen bg-background">
      {/* <Navbar /> */}

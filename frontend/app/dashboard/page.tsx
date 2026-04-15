@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { logoutUser, checkAuthStatus } from "@/lib/auth";
 
 const initialChartData = [
   { name: "Jan", value: 400, projects: 24 },
@@ -50,6 +51,7 @@ function DashboardContent() {
   const [barData, setBarData] = useState(initialChartData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   // Fetch dashboard data securely
   useEffect(() => {
@@ -59,7 +61,7 @@ function DashboardContent() {
       setLoading(true);
       setError(null);
       try {
-        const data = await apiRequest("/dashboard/");
+        const data = await apiRequest("/api/dashboard/");
 
         const statList = [
           {
@@ -124,16 +126,26 @@ function DashboardContent() {
     };
 
     fetchDashboard();
+
+    // Fetch user info
+    checkAuthStatus().then(u => {
+      if (u) setUser(u);
+    });
+
     return () => {
       mounted = false;
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user_email");
-    window.location.href = "/signin";
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Logout failed:", err);
+      // Fallback redirect
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -240,14 +252,11 @@ function DashboardContent() {
                 </button>
               </Link>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full" />
                 <div className="text-sm">
-                  <p className="font-medium">
-                    {typeof window !== "undefined"
-                      ? localStorage.getItem("user_email") || "Admin"
-                      : "Admin"}
+                  <p className="font-medium italic">
+                    {user?.full_name || user?.email || "Admin User"}
                   </p>
-                  <p className="text-foreground/60">Admin</p>
+                  <p className="text-foreground/60">Administrator</p>
                 </div>
               </div>
             </div>

@@ -2,146 +2,122 @@
 
 // Remove the trailing /api/ - we'll add it per endpoint
 export const API_BASE_URL = 
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+  (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 async function refreshToken() {
-  const refresh = localStorage.getItem("refresh");
-  if (!refresh) throw new Error("No refresh token");
-
-  const res = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+  const res = await fetch(`${API_BASE_URL}/api/refresh/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
+    // With credentials 'include', the backend will read the refresh token from the cookie
+    // and set a new access token in the cookie.
+    body: JSON.stringify({}), 
   });
 
   if (!res.ok) throw new Error("Failed to refresh token");
-  const data = await res.json();
-  localStorage.setItem("access", data.access);
-  return data.access;
+  return true;
 }
 
 export async function apiRequest(endpoint: string, options: RequestInit = {}) {
-  const access = localStorage.getItem("access");
   const headers = {
     "Content-Type": "application/json",
-    ...(access ? { Authorization: `Bearer ${access}` } : {}),
     ...(options.headers || {}),
   };
 
-  let res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+  // Always include credentials to send/receive cookies
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: "include", 
+  };
 
-  // If access token expired → refresh
-  if (res.status === 401 && localStorage.getItem("refresh")) {
+  let res = await fetch(`${API_BASE_URL}${endpoint}`, { ...fetchOptions });
+
+  // If 401, try to refresh once
+  if (res.status === 401) {
     try {
-      const newAccess = await refreshToken();
-      const retryHeaders = {
-        ...headers,
-        Authorization: `Bearer ${newAccess}`,
-      };
-      res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers: retryHeaders,
-      });
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        // Retry with same options
+        res = await fetch(`${API_BASE_URL}${endpoint}`, { ...fetchOptions });
+      }
     } catch {
+      // Refresh failed, possibly clear any client state or redirect to login
       throw new Error("Session expired. Please log in again.");
     }
   }
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || "API request failed");
+    let errorMsg = "API request failed";
+    try {
+      const jsonErr = JSON.parse(err);
+      errorMsg = jsonErr.detail || jsonErr.message || errorMsg;
+    } catch {
+      errorMsg = err || errorMsg;
+    }
+    throw new Error(errorMsg);
   }
 
   return res.json();
 }
 
+export async function getCurrentUser() {
+  return apiRequest("/api/me/");
+}
+
 export async function verifyEmailCode(email: string, code: string) {
-  const res = await fetch(`${API_BASE_URL}/api/verify-email/`, {
+  return apiRequest("/api/verify-email/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code }),
   });
-
-  // Try safely parsing the response
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    const text = await res.text();
-    throw new Error(`Server returned non-JSON response: ${text.slice(0, 200)}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(data.detail || data.message || "Invalid code");
-  }
-
-  return data;
 }
 
 export async function resendVerificationCode(email: string) {
-  const res = await fetch(`${API_BASE_URL}/api/resend-verification/`, {
+  return apiRequest("/api/resend-verification/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || data.message || "Failed to resend code");
-  return data;
 }
 
 export async function requestPasswordReset(email: string) {
-  const res = await fetch(`${API_BASE_URL}/api/password-reset-request/`, {
+  return apiRequest("/api/password-reset-request/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || data.message || "Failed to send reset link");
-  return data;
 }
 
-// Verify password reset token
 export async function verifyPasswordResetToken(token: string) {
-  const res = await fetch(`${API_BASE_URL}/api/password-reset-verify/${token}/`, {
+  return apiRequest(`/api/password-reset-verify/${token}/`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
   });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "Invalid or expired token");
-  return data;
 }
 
-// Confirm password reset (with token OR code)
 export async function confirmPasswordReset(data: { 
   token?: string; 
   code?: string; 
   new_password: string 
 }) {
-  const res = await fetch(`${API_BASE_URL}/api/password-reset-confirm/`, {
+  return apiRequest("/api/password-reset-confirm/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  
-  const result = await res.json();
-  if (!res.ok) throw new Error(result.detail || result.message || "Failed to reset password");
-  return result;
 }
 
-export async function sendChatMessage(message: string) {
-  const res = await fetch(`${API_BASE_URL}/api/chat/`, {
+export async function sendChatMessage(
+  message: string,
+  history: Array<{ role: string; text: string }> = []
+) {
+  const res = await fetch("/api/chat/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history }),
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || "Failed to send message");
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || "Failed to reach AI assistant.");
   }
 
-  return res.json(); // expected { reply: "...", sources: [...] }
+  return res.json();
 }
+

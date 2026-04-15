@@ -2,28 +2,46 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { checkAuthStatus } from "@/lib/auth";
 
+/**
+ * Higher Order Component to protect routes.
+ * Verifies session with the backend using /api/me/.
+ */
 export default function ProtectedRoute({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isAuth, setIsAuth] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const access = localStorage.getItem("access");
-    const refresh = localStorage.getItem("refresh");
-
-    if (!access || !refresh) {
-      router.replace("/signin");
-    } else {
-      setIsAuth(true);
+    async function verifyAuth() {
+      try {
+        const user = await checkAuthStatus();
+        if (user) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          router.replace("/signin");
+        }
+      } catch {
+        setIsAuthenticated(false);
+        router.replace("/signin");
+      }
     }
+    verifyAuth();
   }, [router]);
 
-  if (isAuth === null) return null; 
+  // Prevent flash of content
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
-

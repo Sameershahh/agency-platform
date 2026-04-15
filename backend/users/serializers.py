@@ -60,11 +60,15 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'email'  # Use email for login
-
     def validate(self, attrs):
-        email = attrs.get("email")
+        # attrs will contain the key specified by self.username_field (e.g. 'email')
+        email = attrs.get("email") or attrs.get("username")
         password = attrs.get("password")
+
+        print(f"DEBUG: Attempting login for email: {email}")
+
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required")
 
         try:
             user = CustomUser.objects.get(email=email)
@@ -77,9 +81,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not user.is_email_verified:
             raise serializers.ValidationError("Please verify your email before logging in.")
 
-        # Map email to what JWT expects internally
+        # Ensure the key SimpleJWT expects is present in attrs
         attrs[self.username_field] = email
-        return super().validate(attrs)
+        
+        try:
+            data = super().validate(attrs)
+            return data
+        except Exception as e:
+            raise e
 
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:

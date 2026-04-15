@@ -1,19 +1,32 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Menu, X } from "lucide-react"
 import { motion } from "framer-motion"
+import { checkAuthStatus, logoutUser } from "@/lib/auth"
+import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    checkAuthStatus().then(setUser)
+  }, [])
+
+  const handleLogout = async () => {
+    await logoutUser()
+    setUser(null)
+    router.push("/")
+  }
 
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Services", href: "/services" },
-    { label: "Dashboard", href: "/dashboard" },
+    ...(user ? [{ label: "Dashboard", href: "/dashboard" }] : []),
     { label: "About", href: "/about" },
-    { label: "Careers", href: "/careers" }, 
     { label: "Contact", href: "/contact" },
   ]
 
@@ -47,18 +60,34 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link
-              href="/signin"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="px-6 py-2 bg-gradient-to-r from-primary via-accent to-secondary rounded-full text-white font-medium text-sm hover:shadow-lg glow-primary transition-smooth"
-            >
-              Get Started
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-foreground/60 mr-2 italic">
+                  {user.full_name || user.email}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-6 py-2 border border-primary/40 rounded-full text-foreground hover:bg-primary/10 transition-smooth text-sm font-medium"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/signin"
+                  className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="px-6 py-2 bg-gradient-to-r from-primary via-accent to-secondary rounded-full text-white font-medium text-sm hover:shadow-lg glow-primary transition-smooth"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
 
           <button className="md:hidden text-foreground" onClick={() => setIsOpen(!isOpen)}>

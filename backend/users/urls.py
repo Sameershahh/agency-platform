@@ -1,12 +1,13 @@
 from django.urls import path
 from .views import RegisterView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import  profile_view, CustomLoginView, VerifyEmailView, GoogleAuthView, email_verified, PasswordResetVerifyView, ResendVerificationEmailView, LogoutView,  PasswordResetRequestView, PasswordResetConfirmView, ContactMessageView
+from .views import  profile_view, CustomLoginView, VerifyEmailView, GoogleAuthView, email_verified, PasswordResetVerifyView, ResendVerificationEmailView, LogoutView,  PasswordResetRequestView, PasswordResetConfirmView, ContactMessageView, CookieTokenRefreshView, MeView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='token_obtain_pair'),
-    path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
+    path('me/', MeView.as_view(), name='me'),
     path('profile/', profile_view, name='profile'),
     path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
     path("email-verified/", email_verified, name="email-verified"),
@@ -19,7 +20,7 @@ urlpatterns = [
     path('contact/', ContactMessageView.as_view(), name='contact'),
 
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 
 
 ]
