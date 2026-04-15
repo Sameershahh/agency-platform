@@ -23,9 +23,15 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 # ----------------------------------------------------------------------
 #  Core Environment
 # ----------------------------------------------------------------------
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-this")
+SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()  # "production" or "development"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+if ENVIRONMENT == "production" and not SECRET_KEY:
+    raise Exception("SECRET_KEY must be set in the production environment variables.")
+
+if not SECRET_KEY:
+    SECRET_KEY = "django-insecure-dev-only-secret-key"
 
 # ----------------------------------------------------------------------
 #  Hosts and Security
@@ -62,6 +68,8 @@ else:
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'same-origin'
 
 # ----------------------------------------------------------------------
 #  Installed Apps
