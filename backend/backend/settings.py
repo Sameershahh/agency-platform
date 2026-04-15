@@ -45,10 +45,9 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
 
 # Add environment-specific defaults
-if ENVIRONMENT == "production":
-    ALLOWED_HOSTS += [
         ".elasticbeanstalk.com",  # AWS Elastic Beanstalk
         ".compute.amazonaws.com",  # AWS EC2
+        ".vercel.app",             # Vercel Deployments
     ]
 
 if DEBUG or ENVIRONMENT == "development":
