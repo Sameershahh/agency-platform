@@ -65,8 +65,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         email = attrs.get("email") or attrs.get("username")
         password = attrs.get("password")
 
-        print(f"DEBUG: Attempting login for email: {email}")
-
         if not email or not password:
             raise serializers.ValidationError("Email and password are required")
 

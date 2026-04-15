@@ -20,8 +20,9 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Global Production Detection
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+IS_PRODUCTION = ENVIRONMENT == "production"
 DATABASE_URL = os.getenv("DATABASE_URL")
-IS_PRODUCTION = DATABASE_URL is not None
 
 
 # ----------------------------------------------------------------------
@@ -54,8 +55,8 @@ ALLOWED_HOSTS += [
 if DEBUG or ENVIRONMENT == "development":
     ALLOWED_HOSTS += ["127.0.0.1", "localhost", "localhost:8000", "127.0.0.1:8000"]
 
-# Security settings (strict if DATABASE_URL/Prod is present)
-if IS_PRODUCTION:
+# Security settings (strict if DATABASE_URL/Prod is present and NOT in debug)
+if IS_PRODUCTION and not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -363,7 +364,7 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO" if ENVIRONMENT == "production" else "DEBUG",
+        "level": "INFO",
     },
     "loggers": {
         "django": {
