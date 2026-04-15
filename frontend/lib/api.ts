@@ -30,7 +30,10 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     credentials: "include", 
   };
 
-  let res = await fetch(`${API_BASE_URL}${endpoint}`, { ...fetchOptions });
+  // Ensure endpoint has a trailing slash for Django
+  const cleanEndpoint = endpoint.endsWith("/") ? endpoint : `${endpoint}/`;
+  
+  let res = await fetch(`${API_BASE_URL}${cleanEndpoint}`, { ...fetchOptions });
 
   // If 401, try to refresh once
   if (res.status === 401) {

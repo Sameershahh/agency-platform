@@ -213,9 +213,11 @@ PASSWORD_RESET_COOKIE_DOMAIN = os.environ.get("PASSWORD_RESET_COOKIE_DOMAIN", ""
 # ----------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = False
 
-if ENVIRONMENT == "production":
+if IS_PRODUCTION:
     CORS_ALLOWED_ORIGINS = [
         "https://neurastack-agency.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
         BACKEND_URL,  # Allow backend to call itself
     ]
 else:
@@ -234,6 +236,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://neurastack-agency.vercel.app",
     "https://*.elasticbeanstalk.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 if DEBUG or ENVIRONMENT == "development":
