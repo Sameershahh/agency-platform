@@ -45,10 +45,11 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
 
 # Add environment-specific defaults
-        ".elasticbeanstalk.com",  # AWS Elastic Beanstalk
-        ".compute.amazonaws.com",  # AWS EC2
-        ".vercel.app",             # Vercel Deployments
-    ]
+ALLOWED_HOSTS += [
+    ".elasticbeanstalk.com",  # AWS Elastic Beanstalk
+    ".compute.amazonaws.com",  # AWS EC2
+    ".vercel.app",             # Vercel Deployments
+]
 
 if DEBUG or ENVIRONMENT == "development":
     ALLOWED_HOSTS += ["127.0.0.1", "localhost", "localhost:8000", "127.0.0.1:8000"]
