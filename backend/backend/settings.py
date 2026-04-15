@@ -19,6 +19,10 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
+# Global Production Detection
+DATABASE_URL = os.getenv("DATABASE_URL")
+IS_PRODUCTION = DATABASE_URL is not None
+
 
 # ----------------------------------------------------------------------
 #  Core Environment
@@ -51,8 +55,6 @@ if DEBUG or ENVIRONMENT == "development":
     ALLOWED_HOSTS += ["127.0.0.1", "localhost", "localhost:8000", "127.0.0.1:8000"]
 
 # Security settings (strict if DATABASE_URL/Prod is present)
-IS_PRODUCTION = DATABASE_URL is not None
-
 if IS_PRODUCTION:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -143,8 +145,6 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # ----------------------------------------------------------------------
 #  Database - AUTOMATIC DETECTION
 # ----------------------------------------------------------------------
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 if DATABASE_URL:
     # Use Postgres (Production)
     DATABASES = {
