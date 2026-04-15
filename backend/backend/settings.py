@@ -177,11 +177,9 @@ AUTHENTICATION_BACKENDS = [
 # ----------------------------------------------------------------------
 #  URLs / Frontend
 # ----------------------------------------------------------------------
-if ENVIRONMENT == "production":
+if IS_PRODUCTION:
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neurastack-agency.vercel.app")
-    BACKEND_URL = os.environ.get("BACKEND_URL")
-    if not BACKEND_URL:
-        raise Exception("BACKEND_URL is required in production. Set it to your AWS EB URL.")
+    BACKEND_URL = os.environ.get("BACKEND_URL", "")
 else:
     FRONTEND_URL = "http://localhost:3000"
     BACKEND_URL = "http://127.0.0.1:8000"
@@ -324,7 +322,12 @@ HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 # ----------------------------------------------------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Use standard storage if on Vercel to avoid manifest errors
+if IS_PRODUCTION:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Media files (if you're uploading documents/images)
 MEDIA_URL = '/media/'
