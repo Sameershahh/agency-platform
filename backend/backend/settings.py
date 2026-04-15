@@ -50,8 +50,10 @@ if ENVIRONMENT == "production":
 if DEBUG or ENVIRONMENT == "development":
     ALLOWED_HOSTS += ["127.0.0.1", "localhost", "localhost:8000", "127.0.0.1:8000"]
 
-# Security settings (strict in prod, relaxed in dev)
-if ENVIRONMENT == "production":
+# Security settings (strict if DATABASE_URL/Prod is present)
+IS_PRODUCTION = DATABASE_URL is not None
+
+if IS_PRODUCTION:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -139,13 +141,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 # ----------------------------------------------------------------------
-#  Database - FIXED: Removed duplicate configuration
+#  Database - AUTOMATIC DETECTION
 # ----------------------------------------------------------------------
-if ENVIRONMENT == "production":
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL is required in production. Please set it in AWS environment variables.")
-    
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    # Use Postgres (Production)
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL, 
@@ -154,7 +155,7 @@ if ENVIRONMENT == "production":
         )
     }
 else:
-    # Local development uses SQLite
+    # Fallback to Local SQLite (Development)
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -243,7 +244,7 @@ if DEBUG or ENVIRONMENT == "development":
     ]
 
 # Cookie settings
-if ENVIRONMENT == "production":
+if IS_PRODUCTION:
     SESSION_COOKIE_SAMESITE = "None"  # Required for cross-origin
     CSRF_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SECURE = True
@@ -282,9 +283,9 @@ SIMPLE_JWT = {
     # Cookie-based JWT
     'AUTH_COOKIE': 'access_token',            # Name of the cookie
     'AUTH_COOKIE_REFRESH': 'refresh_token',   # Name of the refresh cookie
-    'AUTH_COOKIE_SECURE': ENVIRONMENT == "production",
+    'AUTH_COOKIE_SECURE': IS_PRODUCTION,
     'AUTH_COOKIE_HTTP_ONLY': True,            # Forbidden from JavaScript
-    'AUTH_COOKIE_SAMESITE': 'None' if ENVIRONMENT == "production" else 'Lax',
+    'AUTH_COOKIE_SAMESITE': 'None' if IS_PRODUCTION else 'Lax',
     'AUTH_COOKIE_PATH': '/',
 }
 
