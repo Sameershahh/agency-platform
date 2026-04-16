@@ -474,8 +474,7 @@ class PasswordResetRequestView(APIView):
         html_message = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <img src="https://github.com/Sameershahh.png" alt="Sameer Shah" style="width: 90px; height: 90px; border-radius: 50%; border: 3px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <h2 style="color: #111827; margin-top: 15px; font-weight: 700; letter-spacing: -0.5px;">NeuraStack Agency</h2>
+                <img src="https://neurastack-agency.vercel.app/neurastack-logo-email.png" alt="NeuraStack Logo" style="max-width: 180px; height: auto;">
             </div>
             <div style="color: #374151; font-size: 16px; line-height: 1.6;">
                 <p>Hello,</p>
@@ -641,7 +640,7 @@ class ContactMessageView(generics.ListCreateAPIView):
         html_message = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <img src="https://github.com/Sameershahh.png" alt="Sameer Shah" style="width: 90px; height: 90px; border-radius: 50%; border: 3px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <img src="https://neurastack-agency.vercel.app/neurastack-logo-email.png" alt="NeuraStack Logo" style="max-width: 180px; height: auto;">
                 <h2 style="color: #111827; margin-top: 15px; font-weight: 700; letter-spacing: -0.5px;">New Contact Request</h2>
             </div>
             <div style="color: #374151; font-size: 16px; line-height: 1.6;">
