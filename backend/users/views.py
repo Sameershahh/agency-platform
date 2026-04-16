@@ -401,19 +401,35 @@ class LogoutView(APIView):
                 {"message": "Successfully logged out."},
                 status=status.HTTP_205_RESET_CONTENT
             )
-            # Clear cookies
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE'])
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
-            return response
         except Exception:
-            # Fallback delete cookies even if token fails
+            # Fallback even if token fails
             response = Response(
-                {"error": "Invalid or expired token."},
+                {"error": "Invalid or expired token, but local session cleared."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE'])
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
-            return response
+            
+        # Ensure cookies are properly cleared by matching the SAMESITE, SECURE and PATH attributes exactly
+        for cookie_name in [settings.SIMPLE_JWT['AUTH_COOKIE'], settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH']]:
+            response.delete_cookie(
+                cookie_name,
+                path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                # secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'], # Django's delete_cookie might not take secure depending on version, but doing set_cookie with expired is safer
+
+            )
+            # A foolproof way to delete cookies cross-domain is setting them to empty with past expiry
+            response.set_cookie(
+                key=cookie_name,
+                value="",
+                expires="Thu, 01 Jan 1970 00:00:00 GMT",
+                max_age=0,
+                secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+            )
+
+        return response
 
 
 
