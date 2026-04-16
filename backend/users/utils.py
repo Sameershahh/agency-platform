@@ -43,7 +43,7 @@ def send_verification_email(user, request=None):
     html_message = f"""
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
         <div style="text-align: center; margin-bottom: 30px;">
-            <img src="https://neurastack-agency.vercel.app/neurastack-logo-email.png" alt="NeuraStack Logo" style="max-width: 180px; height: auto;">
+            <img src="https://neurastack-agency.vercel.app/NeuraStack.png" alt="NeuraStack Logo" style="max-width: 180px; height: auto;">
         </div>
         <div style="color: #374151; font-size: 16px; line-height: 1.6;">
             <p>Hi <strong>{user.first_name or 'User'}</strong>,</p>
