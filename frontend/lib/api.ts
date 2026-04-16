@@ -1,8 +1,13 @@
 "use client";
 
-// Ensure the API URL has a protocol and no trailing slash
-const rawUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-export const API_BASE_URL = (rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`).replace(/\/$/, "");
+// Ensure the API URL has a protocol and no trailing slash or redundant /api
+const getCleanUrl = () => {
+  const rawUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+  let url = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+  return url.replace(/\/$/, "").replace(/\/api$/, "");
+};
+
+export const API_BASE_URL = getCleanUrl();
 
 if (typeof window !== "undefined") {
   console.log("🚀 NeuraStack API Base:", API_BASE_URL);
