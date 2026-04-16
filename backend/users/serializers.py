@@ -61,32 +61,34 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
-        # attrs will contain the key specified by self.username_field (e.g. 'email')
+        # Support both 'email' and 'username' keys from frontend
         email = attrs.get("email") or attrs.get("username")
         password = attrs.get("password")
 
-        if not email or not password:
-            raise serializers.ValidationError("Email and password are required")
+        if not email:
+            raise serializers.ValidationError({"detail": "Email field is missing in request"})
+        if not password:
+            raise serializers.ValidationError({"detail": "Password field is missing in request"})
 
         try:
-            user = CustomUser.objects.get(email=email)
+            # Case-insensitive email lookup for robustness
+            user = CustomUser.objects.get(email__iexact=email)
         except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No user found with this email address")
+            raise serializers.ValidationError({"detail": f"No user found with email: {email}"})
 
         if not user.check_password(password):
-            raise serializers.ValidationError("Incorrect password")
+            raise serializers.ValidationError({"detail": "Incorrect password provided"})
 
         if not user.is_email_verified:
-            raise serializers.ValidationError("Please verify your email before logging in.")
+            raise serializers.ValidationError({"detail": "Account exists but email is not verified"})
 
-        # Ensure the key SimpleJWT expects is present in attrs
-        attrs[self.username_field] = email
+        # SimpleJWT expects the username field to be present
+        attrs[self.username_field] = user.email
         
         try:
-            data = super().validate(attrs)
-            return data
+            return super().validate(attrs)
         except Exception as e:
-            raise e
+            raise serializers.ValidationError({"detail": f"Authentication system error: {str(e)}"})
 
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
