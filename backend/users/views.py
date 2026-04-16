@@ -471,9 +471,37 @@ class PasswordResetRequestView(APIView):
         reset_link = f"{frontend_url.rstrip('/')}/reset-password?token={token}"
 
         # Send email
+        html_message = f"""
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <img src="https://github.com/Sameershahh.png" alt="Sameer Shah" style="width: 90px; height: 90px; border-radius: 50%; border: 3px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <h2 style="color: #111827; margin-top: 15px; font-weight: 700; letter-spacing: -0.5px;">NeuraStack Agency</h2>
+            </div>
+            <div style="color: #374151; font-size: 16px; line-height: 1.6;">
+                <p>Hello,</p>
+                <p>We received a request to reset the password for your NeuraStack account.</p>
+                <p>Your 6-digit password reset code is:</p>
+                <div style="text-align: center; margin: 35px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px dashed #d1d5db;">
+                    <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #111827;">{code}</span>
+                </div>
+                <p style="font-size: 14px; color: #6b7280;">This code will expire in 15 minutes.</p>
+                <p style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; background-color: #111827; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Or Click Here to Reset</a>
+                </p>
+                <p style="font-size: 14px; color: #6b7280;">If you didn't request a password reset, you can safely ignore this email. Your account is secure.</p>
+                <br>
+                <p>Best regards,<br><strong>Sameer Shah</strong><br><span style="color: #6b7280; font-size: 14px;">Founder & Lead Developer</span></p>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 40px 0 20px 0;">
+            <div style="text-align: center; color: #9ca3af; font-size: 12px;">
+                &copy; 2026 NeuraStack Agency. All rights reserved.
+            </div>
+        </div>
+        """
+
         try:
             send_mail(
-                subject="Password Reset Request",
+                subject="Password Reset Request - NeuraStack",
                 message=(
                     f"Hello,\n\n"
                     f"You requested to reset your password.\n\n"
@@ -485,6 +513,7 @@ class PasswordResetRequestView(APIView):
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[email],
                 fail_silently=False,
+                html_message=html_message
             )
         except Exception as e:
             import logging
@@ -609,6 +638,29 @@ class ContactMessageView(generics.ListCreateAPIView):
         contact = serializer.save()
 
         # Send email to admin
+        html_message = f"""
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <img src="https://github.com/Sameershahh.png" alt="Sameer Shah" style="width: 90px; height: 90px; border-radius: 50%; border: 3px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <h2 style="color: #111827; margin-top: 15px; font-weight: 700; letter-spacing: -0.5px;">New Contact Request</h2>
+            </div>
+            <div style="color: #374151; font-size: 16px; line-height: 1.6;">
+                <p>Hello <strong>Sameer</strong>,</p>
+                <p>You have received a new message from the NeuraStack contact form:</p>
+                <div style="margin: 25px 0; padding: 25px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #111827;">
+                    <p style="margin: 0 0 10px 0;"><strong>Name:</strong> {contact.name}</p>
+                    <p style="margin: 0 0 20px 0;"><strong>Email:</strong> <a href="mailto:{contact.email}" style="color: #2563eb; text-decoration: none;">{contact.email}</a></p>
+                    <p style="margin: 0 0 5px 0;"><strong>Message:</strong></p>
+                    <p style="margin: 0; white-space: pre-wrap; font-style: italic; color: #4b5563;">"{contact.message}"</p>
+                </div>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 40px 0 20px 0;">
+            <div style="text-align: center; color: #9ca3af; font-size: 12px;">
+                &copy; 2026 NeuraStack Agency Automated Notifications.
+            </div>
+        </div>
+        """
+
         send_mail(
             subject=f"New Contact Message from {contact.name}",
             message=(
@@ -619,4 +671,5 @@ class ContactMessageView(generics.ListCreateAPIView):
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[settings.EMAIL_HOST_USER],  
             fail_silently=False,
+            html_message=html_message
         )

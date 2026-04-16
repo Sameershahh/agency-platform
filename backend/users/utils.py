@@ -31,14 +31,38 @@ def send_verification_email(user, request=None):
     user.email_verification_expiry = timezone.now() + timedelta(minutes=10)
     user.save(update_fields=["email_verification_code", "email_verification_expiry"])
 
-    subject = "Verify your email"
+    subject = "Verify your email - NeuraStack"
     message = (
         f"Hi {user.first_name or 'User'},\n\n"
         f"Your email verification code is: {code}\n\n"
         f"This code will expire in 10 minutes.\n\n"
         f"If you did not request this, please ignore this email.\n\n"
-        "Thanks,\nSameer SaaS Team"
+        "Thanks,\nSameer Shah\nNeuraStack Team"
     )
+
+    # Injecting the requested Profile Image and HTML styling
+    html_message = f"""
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://github.com/Sameershahh.png" alt="Sameer Shah" style="width: 90px; height: 90px; border-radius: 50%; border: 3px solid #f0f0f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h2 style="color: #111827; margin-top: 15px; font-weight: 700; letter-spacing: -0.5px;">NeuraStack Agency</h2>
+        </div>
+        <div style="color: #374151; font-size: 16px; line-height: 1.6;">
+            <p>Hi <strong>{user.first_name or 'User'}</strong>,</p>
+            <p>Welcome to NeuraStack! Please use the following verification code to confirm your email address:</p>
+            <div style="text-align: center; margin: 35px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px dashed #d1d5db;">
+                <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #111827;">{code}</span>
+            </div>
+            <p style="font-size: 14px; color: #6b7280;">This code will expire in 10 minutes. If you did not sign up for NeuraStack, you can safely ignore this email.</p>
+            <br>
+            <p>Best regards,<br><strong>Sameer Shah</strong><br><span style="color: #6b7280; font-size: 14px;">Founder & Lead Developer</span></p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 40px 0 20px 0;">
+        <div style="text-align: center; color: #9ca3af; font-size: 12px;">
+            &copy; {timezone.now().year} NeuraStack Agency. All rights reserved.
+        </div>
+    </div>
+    """
 
     send_mail(
         subject,
@@ -46,6 +70,8 @@ def send_verification_email(user, request=None):
         getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
         [user.email],
         fail_silently=False,
+        html_message=html_message,
+        
     )
     return True
 
