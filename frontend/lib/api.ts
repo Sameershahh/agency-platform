@@ -4,6 +4,10 @@
 const rawUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 export const API_BASE_URL = (rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`).replace(/\/$/, "");
 
+if (typeof window !== "undefined") {
+  console.log("🚀 NeuraStack API Base:", API_BASE_URL);
+}
+
 async function refreshToken() {
   const res = await fetch(`${API_BASE_URL}/api/refresh/`, {
     method: "POST",
@@ -110,10 +114,11 @@ export async function sendChatMessage(
   message: string,
   history: Array<{ role: string; text: string }> = []
 ) {
-  const res = await fetch("/api/chat/", {
+  const res = await fetch(`${API_BASE_URL}/api/chat/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, history }),
+    credentials: "include",
   });
 
   if (!res.ok) {
