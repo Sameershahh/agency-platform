@@ -5,6 +5,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { API_BASE_URL } from "@/lib/api"
 import { Mail, Phone, MapPin, Send } from "lucide-react"
 
 export default function ContactPage() {
@@ -25,7 +26,7 @@ export default function ContactPage() {
     e.preventDefault()
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/contact/", {
+      const response = await fetch(`${API_BASE_URL}/api/contact/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
